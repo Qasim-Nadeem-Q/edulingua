@@ -18,7 +18,7 @@ import org.springframework.web.context.request.ServletRequestAttributes
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.RUNTIME)
 annotation class RequirePermission(
-    vararg val permissions: Permission,
+    vararg val permissions: String,
     val requireAll: Boolean = false // If true, user must have ALL permissions, else ANY
 )
 

@@ -2,6 +2,7 @@ package com.edulingua.api.filter
 
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.stereotype.Component
+import java.util.*
 
 /**
  * Utility class for extracting authentication context from HTTP requests.
@@ -13,16 +14,16 @@ class AuthContext {
     companion object {
         private const val USER_ID_ATTRIBUTE = "userId"
         private const val USER_EMAIL_ATTRIBUTE = "userEmail"
-        private const val USER_ROLE_ATTRIBUTE = "userRole"
-        private const val USER_TYPE_ATTRIBUTE = "userType"
+        private const val USERNAME_ATTRIBUTE = "username"
+        private const val USER_ROLES_ATTRIBUTE = "userRoles"
         private const val PERMISSIONS_ATTRIBUTE = "permissions"
         private const val TOKEN_ATTRIBUTE = "token"
 
         /**
          * Extracts the authenticated user ID from the request.
          */
-        fun getUserId(request: HttpServletRequest): Long? {
-            return request.getAttribute(USER_ID_ATTRIBUTE) as? Long
+        fun getUserId(request: HttpServletRequest): UUID? {
+            return request.getAttribute(USER_ID_ATTRIBUTE) as? UUID
         }
 
         /**
@@ -33,17 +34,18 @@ class AuthContext {
         }
 
         /**
-         * Extracts the user role code from the request.
+         * Extracts the username from the request.
          */
-        fun getUserRole(request: HttpServletRequest): String? {
-            return request.getAttribute(USER_ROLE_ATTRIBUTE) as? String
+        fun getUsername(request: HttpServletRequest): String? {
+            return request.getAttribute(USERNAME_ATTRIBUTE) as? String
         }
 
         /**
-         * Extracts the user type (ADMIN or CONSUMER) from the request.
+         * Extracts the user roles from the request.
          */
-        fun getUserType(request: HttpServletRequest): String? {
-            return request.getAttribute(USER_TYPE_ATTRIBUTE) as? String
+        @Suppress("UNCHECKED_CAST")
+        fun getUserRoles(request: HttpServletRequest): List<String> {
+            return request.getAttribute(USER_ROLES_ATTRIBUTE) as? List<String> ?: emptyList()
         }
 
         /**
@@ -93,10 +95,26 @@ class AuthContext {
         }
 
         /**
+         * Checks if user has a specific role.
+         */
+        fun hasRole(request: HttpServletRequest, roleName: String): Boolean {
+            val roles = getUserRoles(request)
+            return roles.contains(roleName)
+        }
+
+        /**
+         * Checks if user has any of the specified roles.
+         */
+        fun hasAnyRole(request: HttpServletRequest, vararg roleNames: String): Boolean {
+            val roles = getUserRoles(request)
+            return roleNames.any { roles.contains(it) }
+        }
+
+        /**
          * Checks if user is admin.
          */
         fun isAdmin(request: HttpServletRequest): Boolean {
-            return getUserType(request) == "ADMIN"
+            return hasRole(request, "ADMIN")
         }
 
         /**

@@ -37,3 +37,17 @@ build/
 
 ### Mac OS ###
 .DS_Store
+
+### Environment Variables ###
+.env
+.env.local
+.env.*.local
+
+### Database ###
+*.db
+*.sql.backup
+*.dump
+
+### Logs ###
+logs/
+*.log

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import org.springframework.stereotype.Repository
 import java.time.LocalDateTime
+import java.util.*
 
 /**
  * Audit log entity for tracking all user actions (accountability).
@@ -12,7 +13,7 @@ import java.time.LocalDateTime
  */
 @Entity
 @Table(name = "audit_logs", indexes = [
-    Index(name = "idx_audit_user", columnList = "user_id,user_type"),
+    Index(name = "idx_audit_user", columnList = "user_id"),
     Index(name = "idx_audit_action", columnList = "action"),
     Index(name = "idx_audit_timestamp", columnList = "timestamp"),
     Index(name = "idx_audit_resource", columnList = "resource_type,resource_id")
@@ -23,16 +24,13 @@ data class AuditLog(
     val id: Long? = null,
 
     @Column(name = "user_id", nullable = false)
-    val userId: Long,
+    val userId: UUID,
 
     @Column(name = "user_email", nullable = false)
     val userEmail: String,
 
-    @Column(name = "user_type", nullable = false)
-    val userType: String, // ADMIN or CONSUMER
-
-    @Column(name = "user_role", nullable = false)
-    val userRole: String, // A, S, D, SC, CL, ST
+    @Column(name = "user_roles", columnDefinition = "TEXT", nullable = false)
+    val userRoles: String, // Comma-separated role names
 
     @Column(nullable = false)
     val action: String, // CREATE, READ, UPDATE, DELETE, LOGIN, LOGOUT, etc.
@@ -96,11 +94,11 @@ enum class AuditAction(val description: String) {
     USER_ACTIVATE("User activated"),
     USER_DEACTIVATE("User deactivated"),
 
-    // Consumer management
-    CONSUMER_CREATE("Consumer created"),
-    CONSUMER_READ("Consumer viewed"),
-    CONSUMER_UPDATE("Consumer updated"),
-    CONSUMER_DELETE("Consumer deleted"),
+    // Role management
+    ROLE_CREATE("Role created"),
+    ROLE_UPDATE("Role updated"),
+    ROLE_ASSIGN("Role assigned"),
+    ROLE_REVOKE("Role revoked"),
 
     // Test management
     TEST_CREATE("Test created"),
@@ -136,9 +134,7 @@ enum class AuditAction(val description: String) {
 @Repository
 interface AuditLogRepository : JpaRepository<AuditLog, Long> {
 
-    fun findByUserId(userId: Long): List<AuditLog>
-
-    fun findByUserIdAndUserType(userId: Long, userType: String): List<AuditLog>
+    fun findByUserId(userId: UUID): List<AuditLog>
 
     fun findByAction(action: String): List<AuditLog>
 
@@ -148,7 +144,7 @@ interface AuditLogRepository : JpaRepository<AuditLog, Long> {
     fun findByDateRange(startDate: LocalDateTime, endDate: LocalDateTime): List<AuditLog>
 
     @Query("SELECT a FROM AuditLog a WHERE a.userId = :userId AND a.timestamp BETWEEN :startDate AND :endDate")
-    fun findByUserAndDateRange(userId: Long, startDate: LocalDateTime, endDate: LocalDateTime): List<AuditLog>
+    fun findByUserAndDateRange(userId: UUID, startDate: LocalDateTime, endDate: LocalDateTime): List<AuditLog>
 
     @Query("SELECT a FROM AuditLog a WHERE a.success = false ORDER BY a.timestamp DESC")
     fun findFailedActions(): List<AuditLog>

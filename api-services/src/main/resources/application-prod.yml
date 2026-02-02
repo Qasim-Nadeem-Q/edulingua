@@ -1,0 +1,37 @@
+# Production Environment Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:edulingua}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 10
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+logging:
+  level:
+    com.edulingua: INFO
+    org.springframework.web: WARN
+    org.hibernate: WARN
+
+edulingua:
+  security:
+    jwt-secret: ${JWT_SECRET}  # MUST be set via environment variable
+    jwt-expiration-ms: 3600000  # 1 hour (shorter for production)
+    jwt-refresh-expiration-ms: 604800000  # 7 days
+
+server:
+  port: ${SERVER_PORT:8080}
+  compression:
+    enabled: true
+  http2:
+    enabled: true

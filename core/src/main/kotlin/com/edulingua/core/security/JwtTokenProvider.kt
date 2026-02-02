@@ -1,7 +1,5 @@
 package com.edulingua.core.security
 
-import com.edulingua.core.models.Permission
-import com.edulingua.core.models.Role
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.SignatureAlgorithm
@@ -13,6 +11,7 @@ import java.util.*
 
 /**
  * JWT utility for token generation, validation, and claims extraction.
+ * Works with unified User model supporting multiple roles and permissions.
  */
 @Component
 class JwtTokenProvider {
@@ -34,10 +33,11 @@ class JwtTokenProvider {
      * Generates access token for authenticated user
      */
     fun generateAccessToken(
-        userId: Long,
+        userId: UUID,
         email: String,
-        role: Role,
-        userType: String // "ADMIN" or "CONSUMER"
+        username: String,
+        roles: List<String>,
+        permissions: List<String>
     ): String {
         val now = Date()
         val expiryDate = Date(now.time + jwtExpirationMs)
@@ -45,10 +45,9 @@ class JwtTokenProvider {
         return Jwts.builder()
             .setSubject(userId.toString())
             .claim("email", email)
-            .claim("role", role.code)
-            .claim("roleDescription", role.description)
-            .claim("userType", userType)
-            .claim("permissions", role.permissions.map { it.name })
+            .claim("username", username)
+            .claim("roles", roles)
+            .claim("permissions", permissions)
             .setIssuedAt(now)
             .setExpiration(expiryDate)
             .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -58,7 +57,7 @@ class JwtTokenProvider {
     /**
      * Generates refresh token for token renewal
      */
-    fun generateRefreshToken(userId: Long, email: String): String {
+    fun generateRefreshToken(userId: UUID, email: String): String {
         val now = Date()
         val expiryDate = Date(now.time + jwtRefreshExpirationMs)
 
@@ -75,9 +74,9 @@ class JwtTokenProvider {
     /**
      * Extracts user ID from token
      */
-    fun getUserIdFromToken(token: String): Long {
+    fun getUserIdFromToken(token: String): String {
         val claims = getAllClaimsFromToken(token)
-        return claims.subject.toLong()
+        return claims.subject
     }
 
     /**
@@ -89,19 +88,20 @@ class JwtTokenProvider {
     }
 
     /**
-     * Extracts role from token
+     * Extracts username from token
      */
-    fun getRoleFromToken(token: String): String {
+    fun getUsernameFromToken(token: String): String {
         val claims = getAllClaimsFromToken(token)
-        return claims["role"] as String
+        return claims["username"] as String
     }
 
     /**
-     * Extracts user type from token
+     * Extracts roles from token
      */
-    fun getUserTypeFromToken(token: String): String {
+    @Suppress("UNCHECKED_CAST")
+    fun getRolesFromToken(token: String): List<String> {
         val claims = getAllClaimsFromToken(token)
-        return claims["userType"] as String
+        return claims["roles"] as? List<String> ?: emptyList()
     }
 
     /**
@@ -162,24 +162,40 @@ class JwtTokenProvider {
     /**
      * Checks if user has specific permission
      */
-    fun hasPermission(token: String, permission: Permission): Boolean {
+    fun hasPermission(token: String, permissionName: String): Boolean {
         val permissions = getPermissionsFromToken(token)
-        return permissions.contains(permission.name)
+        return permissions.contains(permissionName)
     }
 
     /**
      * Checks if user has any of the specified permissions
      */
-    fun hasAnyPermission(token: String, vararg permissions: Permission): Boolean {
+    fun hasAnyPermission(token: String, vararg permissionNames: String): Boolean {
         val userPermissions = getPermissionsFromToken(token)
-        return permissions.any { userPermissions.contains(it.name) }
+        return permissionNames.any { userPermissions.contains(it) }
     }
 
     /**
      * Checks if user has all of the specified permissions
      */
-    fun hasAllPermissions(token: String, vararg permissions: Permission): Boolean {
+    fun hasAllPermissions(token: String, vararg permissionNames: String): Boolean {
         val userPermissions = getPermissionsFromToken(token)
-        return permissions.all { userPermissions.contains(it.name) }
+        return permissionNames.all { userPermissions.contains(it) }
+    }
+
+    /**
+     * Checks if user has specific role
+     */
+    fun hasRole(token: String, roleName: String): Boolean {
+        val roles = getRolesFromToken(token)
+        return roles.contains(roleName)
+    }
+
+    /**
+     * Checks if user has any of the specified roles
+     */
+    fun hasAnyRole(token: String, vararg roleNames: String): Boolean {
+        val userRoles = getRolesFromToken(token)
+        return roleNames.any { userRoles.contains(it) }
     }
 }

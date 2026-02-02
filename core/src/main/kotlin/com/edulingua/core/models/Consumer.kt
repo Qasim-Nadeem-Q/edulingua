@@ -1,103 +1,22 @@
 package com.edulingua.core.models
 
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import jakarta.persistence.*
-import jakarta.validation.constraints.Email
-import jakarta.validation.constraints.NotBlank
-import jakarta.validation.constraints.Size
-import org.springframework.data.jpa.repository.JpaRepository
-import org.springframework.data.jpa.repository.Query
-import org.springframework.stereotype.Repository
-import java.time.LocalDateTime
-import java.util.*
-
 /**
- * Consumer entity - for test takers with hierarchical roles.
- * Roles: STATE (S), DISTRICT (D), SCHOOL (SC), CLASS (CL), STUDENT (ST)
+ * DEPRECATED: This model has been unified into the User model.
+ * Please use User model for all user types with role-based access control.
+ *
+ * The system now uses a single User entity with multiple roles and permissions
+ * instead of separate AdminUser and Consumer entities.
+ *
+ * @see User
+ * @see Role
+ * @see Permission
  */
-@Entity
-@Table(name = "consumers", indexes = [
-    Index(name = "idx_consumer_role", columnList = "role"),
-    Index(name = "idx_consumer_state", columnList = "state_code"),
-    Index(name = "idx_consumer_district", columnList = "district_code"),
-    Index(name = "idx_consumer_school", columnList = "school_code")
-])
-data class Consumer(
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    val id: Long? = null,
-
-    @field:NotBlank(message = "Email is required")
-    @field:Email(message = "Email should be valid")
-    @Column(nullable = false, unique = true)
-    val email: String,
-
-    @field:NotBlank(message = "Name is required")
-    @field:Size(min = 2, max = 100, message = "Name must be between 2 and 100 characters")
-    @Column(nullable = false)
-    val name: String,
-
-    @field:NotBlank(message = "Password is required")
-    @field:Size(min = 8, max = 100, message = "Password must be at least 8 characters")
-    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
-    @Column(nullable = false)
-    val password: String,
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    val role: Role,
-
-    @Column(nullable = false)
-    val active: Boolean = true,
-
-    // Hierarchical location identifiers
-    @Column(name = "state_code")
-    val stateCode: String? = null,
-
-    @Column(name = "state_name")
-    val stateName: String? = null,
-
-    @Column(name = "district_code")
-    val districtCode: String? = null,
-
-    @Column(name = "district_name")
-    val districtName: String? = null,
-
-    @Column(name = "school_code")
-    val schoolCode: String? = null,
-
-    @Column(name = "school_name")
-    val schoolName: String? = null,
-
-    @Column(name = "class_code")
-    val classCode: String? = null,
-
-    @Column(name = "class_name")
-    val className: String? = null,
-
-    // Student specific fields
-    @Column(name = "roll_number")
-    val rollNumber: String? = null,
-
-    @Column(name = "date_of_birth")
-    val dateOfBirth: LocalDateTime? = null,
-
-    @Column(name = "phone_number")
-    val phoneNumber: String? = null,
-
-    @Column(name = "parent_email")
-    val parentEmail: String? = null,
-
-    @JsonIgnore
-    @Column(name = "last_login")
-    val lastLogin: LocalDateTime? = null,
-
-    @JsonIgnore
-    @Column(name = "created_at", nullable = false, updatable = false)
-    val createdAt: LocalDateTime = LocalDateTime.now(),
-
-    @JsonIgnore
+@Deprecated(
+    message = "Use User model instead",
+    replaceWith = ReplaceWith("User"),
+    level = DeprecationLevel.ERROR
+)
+class Consumer
     @Column(name = "updated_at", nullable = false)
     val updatedAt: LocalDateTime = LocalDateTime.now()
 ) {

@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.time.LocalDateTime
+import java.util.*
 
 /**
  * Service for audit logging and accountability tracking.
@@ -29,10 +30,9 @@ class AuditService(
      */
     @Async
     fun logAction(
-        userId: Long,
+        userId: UUID,
         userEmail: String,
-        userType: String,
-        userRole: String,
+        userRoles: String,
         action: AuditAction,
         resourceType: String? = null,
         resourceId: String? = null,
@@ -47,8 +47,7 @@ class AuditService(
             val auditLog = AuditLog(
                 userId = userId,
                 userEmail = userEmail,
-                userType = userType,
-                userRole = userRole,
+                userRoles = userRoles,
                 action = action.name,
                 resourceType = resourceType,
                 resourceId = resourceId,
@@ -68,11 +67,10 @@ class AuditService(
             auditLogRepository.save(auditLog)
 
             logger.info(
-                "Audit: {} - User: {} ({}:{}) - Action: {} - Resource: {}:{} - Success: {}",
+                "Audit: {} - User: {} (Roles:{}) - Action: {} - Resource: {}:{} - Success: {}",
                 auditLog.id,
                 userEmail,
-                userType,
-                userRole,
+                userRoles,
                 action.name,
                 resourceType ?: "N/A",
                 resourceId ?: "N/A",
@@ -88,18 +86,16 @@ class AuditService(
      */
     @Async
     fun logLogin(
-        userId: Long,
+        userId: UUID,
         userEmail: String,
-        userType: String,
-        userRole: String,
+        userRoles: String,
         request: HttpServletRequest,
         success: Boolean = true
     ) {
         logAction(
             userId = userId,
             userEmail = userEmail,
-            userType = userType,
-            userRole = userRole,
+            userRoles = userRoles,
             action = if (success) AuditAction.LOGIN else AuditAction.LOGIN_FAILED,
             description = if (success) "Successful login" else "Failed login attempt",
             request = request,
@@ -112,17 +108,15 @@ class AuditService(
      */
     @Async
     fun logLogout(
-        userId: Long,
+        userId: UUID,
         userEmail: String,
-        userType: String,
-        userRole: String,
+        userRoles: String,
         request: HttpServletRequest
     ) {
         logAction(
             userId = userId,
             userEmail = userEmail,
-            userType = userType,
-            userRole = userRole,
+            userRoles = userRoles,
             action = AuditAction.LOGOUT,
             description = "User logged out",
             request = request
@@ -130,11 +124,40 @@ class AuditService(
     }
 
     /**
+     * Logs a password change attempt
+     */
+    @Async
+    fun logPasswordChange(
+        userId: UUID,
+        userEmail: String,
+        request: HttpServletRequest,
+        success: Boolean = true
+    ) {
+        logAction(
+            userId = userId,
+            userEmail = userEmail,
+            userRoles = "", // Will be populated if needed
+            action = AuditAction.PASSWORD_CHANGE,
+            description = if (success) "Password changed successfully" else "Failed password change attempt",
+            request = request,
+            success = success
+        )
+    }
+
+    /**
      * Retrieves audit logs by user
      */
     @Transactional(readOnly = true)
-    fun getAuditLogsByUser(userId: Long): List<AuditLog> {
+    fun getAuditLogsByUserId(userId: UUID): List<AuditLog> {
         return auditLogRepository.findByUserId(userId)
+    }
+
+    /**
+     * Retrieves audit logs by action
+     */
+    @Transactional(readOnly = true)
+    fun getAuditLogsByAction(action: String): List<AuditLog> {
+        return auditLogRepository.findByAction(action)
     }
 
     /**
@@ -142,7 +165,15 @@ class AuditService(
      */
     @Transactional(readOnly = true)
     fun getAuditLogsByDateRange(startDate: LocalDateTime, endDate: LocalDateTime): List<AuditLog> {
-        return auditLogRepository.findByDateRange(startDate, endDate)
+        return auditLogRepository.findByTimestampBetween(startDate, endDate)
+    }
+
+    /**
+     * Retrieves recent audit logs (top 50)
+     */
+    @Transactional(readOnly = true)
+    fun getRecentAuditLogs(): List<AuditLog> {
+        return auditLogRepository.findTop50ByOrderByTimestampDesc()
     }
 
     /**

@@ -6,177 +6,99 @@ import com.edulingua.core.models.*
 import com.edulingua.core.security.JwtTokenProvider
 import jakarta.servlet.http.HttpServletRequest
 import org.springframework.beans.factory.annotation.Value
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.*
 
 /**
  * Authentication service handling login, token generation, and validation.
- * TODO: Integrate password hashing (BCrypt) in production.
+ * Works with unified User model with role-based access control.
  */
 @Service
 @Transactional
 class AuthenticationService(
-    private val adminUserRepository: AdminUserRepository,
-    private val consumerRepository: ConsumerRepository,
+    private val userRepository: UserRepository,
     private val jwtTokenProvider: JwtTokenProvider,
-    private val auditService: AuditService
+    private val auditService: AuditService,
+    private val passwordEncoder: PasswordEncoder
 ) {
 
     @Value("\${edulingua.security.jwt-expiration-ms:86400000}")
     private var jwtExpirationMs: Long = 86400000
 
     /**
-     * Authenticates admin user and generates tokens
+     * Authenticates user (email or username) and generates tokens
      */
-    fun authenticateAdmin(
+    fun authenticate(
         loginRequest: LoginRequest,
         request: HttpServletRequest
     ): LoginResponse {
-        val adminUser = adminUserRepository.findByEmail(loginRequest.email)
-            .orElseThrow { ResourceNotFoundException("Invalid email or password") }
+        // Try to find user by email or username
+        val user = findUserByEmailOrUsername(loginRequest.emailOrUsername)
+            ?: throw ResourceNotFoundException("Invalid credentials")
 
-        if (!adminUser.active) {
+        if (!user.active) {
             auditService.logLogin(
-                userId = adminUser.id!!,
-                userEmail = adminUser.email,
-                userType = "ADMIN",
-                userRole = adminUser.role.code,
+                userId = user.id!!,
+                userEmail = user.email,
+                userRoles = user.roles.joinToString(",") { it.name },
                 request = request,
                 success = false
             )
             throw BusinessValidationException("Account is inactive. Please contact administrator.")
         }
 
-        // TODO: Replace with BCrypt password verification
-        if (adminUser.password != loginRequest.password) {
+        // Verify password with BCrypt
+        if (!passwordEncoder.matches(loginRequest.password, user.password)) {
             auditService.logLogin(
-                userId = adminUser.id!!,
-                userEmail = adminUser.email,
-                userType = "ADMIN",
-                userRole = adminUser.role.code,
+                userId = user.id!!,
+                userEmail = user.email,
+                userRoles = user.roles.joinToString(",") { it.name },
                 request = request,
                 success = false
             )
-            throw BusinessValidationException("Invalid email or password")
+            throw BusinessValidationException("Invalid credentials")
         }
 
         // Generate tokens
         val accessToken = jwtTokenProvider.generateAccessToken(
-            userId = adminUser.id!!,
-            email = adminUser.email,
-            role = adminUser.role,
-            userType = "ADMIN"
+            userId = user.id!!,
+            email = user.email,
+            username = user.username,
+            roles = user.roles.map { it.name },
+            permissions = user.getAllPermissions()
         )
 
         val refreshToken = jwtTokenProvider.generateRefreshToken(
-            userId = adminUser.id,
-            email = adminUser.email
+            userId = user.id,
+            email = user.email
         )
 
         // Log successful login
         auditService.logLogin(
-            userId = adminUser.id,
-            userEmail = adminUser.email,
-            userType = "ADMIN",
-            userRole = adminUser.role.code,
+            userId = user.id,
+            userEmail = user.email,
+            userRoles = user.roles.joinToString(",") { it.name },
             request = request,
             success = true
         )
 
         // Update last login
-        val updatedUser = adminUser.copy(lastLogin = java.time.LocalDateTime.now())
-        adminUserRepository.save(updatedUser)
+        val updatedUser = user.recordLogin()
+        userRepository.save(updatedUser)
 
         return LoginResponse(
             accessToken = accessToken,
             refreshToken = refreshToken,
             expiresIn = jwtExpirationMs / 1000,
             user = UserInfo(
-                id = adminUser.id,
-                email = adminUser.email,
-                name = adminUser.name,
-                role = adminUser.role.code,
-                roleDescription = adminUser.role.description,
-                userType = "ADMIN",
-                permissions = adminUser.role.permissions.map { it.name }
-            )
-        )
-    }
-
-    /**
-     * Authenticates consumer and generates tokens
-     */
-    fun authenticateConsumer(
-        loginRequest: LoginRequest,
-        request: HttpServletRequest
-    ): LoginResponse {
-        val consumer = consumerRepository.findByEmail(loginRequest.email)
-            .orElseThrow { ResourceNotFoundException("Invalid email or password") }
-
-        if (!consumer.active) {
-            auditService.logLogin(
-                userId = consumer.id!!,
-                userEmail = consumer.email,
-                userType = "CONSUMER",
-                userRole = consumer.role.code,
-                request = request,
-                success = false
-            )
-            throw BusinessValidationException("Account is inactive. Please contact administrator.")
-        }
-
-        // TODO: Replace with BCrypt password verification
-        if (consumer.password != loginRequest.password) {
-            auditService.logLogin(
-                userId = consumer.id!!,
-                userEmail = consumer.email,
-                userType = "CONSUMER",
-                userRole = consumer.role.code,
-                request = request,
-                success = false
-            )
-            throw BusinessValidationException("Invalid email or password")
-        }
-
-        // Generate tokens
-        val accessToken = jwtTokenProvider.generateAccessToken(
-            userId = consumer.id!!,
-            email = consumer.email,
-            role = consumer.role,
-            userType = "CONSUMER"
-        )
-
-        val refreshToken = jwtTokenProvider.generateRefreshToken(
-            userId = consumer.id,
-            email = consumer.email
-        )
-
-        // Log successful login
-        auditService.logLogin(
-            userId = consumer.id,
-            userEmail = consumer.email,
-            userType = "CONSUMER",
-            userRole = consumer.role.code,
-            request = request,
-            success = true
-        )
-
-        // Update last login
-        val updatedConsumer = consumer.copy(lastLogin = java.time.LocalDateTime.now())
-        consumerRepository.save(updatedConsumer)
-
-        return LoginResponse(
-            accessToken = accessToken,
-            refreshToken = refreshToken,
-            expiresIn = jwtExpirationMs / 1000,
-            user = UserInfo(
-                id = consumer.id,
-                email = consumer.email,
-                name = consumer.name,
-                role = consumer.role.code,
-                roleDescription = consumer.role.description,
-                userType = "CONSUMER",
-                permissions = consumer.role.permissions.map { it.name }
+                id = user.id,
+                email = user.email,
+                username = user.username,
+                name = user.name,
+                roles = user.roles.map { it.name },
+                permissions = user.getAllPermissions()
             )
         )
     }
@@ -184,7 +106,7 @@ class AuthenticationService(
     /**
      * Refreshes access token using refresh token
      */
-    fun refreshAccessToken(refreshTokenRequest: RefreshTokenRequest): TokenRefreshResponse {
+    fun refreshToken(refreshTokenRequest: RefreshTokenRequest): TokenRefreshResponse {
         val refreshToken = refreshTokenRequest.refreshToken
 
         if (!jwtTokenProvider.validateToken(refreshToken)) {
@@ -192,9 +114,93 @@ class AuthenticationService(
         }
 
         val userId = jwtTokenProvider.getUserIdFromToken(refreshToken)
-        val email = jwtTokenProvider.getEmailFromToken(refreshToken)
+        val user = userRepository.findById(UUID.fromString(userId))
+            .orElseThrow { ResourceNotFoundException("User not found") }
 
-        // Try to find user in both repositories
+        if (!user.active) {
+            throw BusinessValidationException("Account is inactive")
+        }
+
+        val accessToken = jwtTokenProvider.generateAccessToken(
+            userId = user.id!!,
+            email = user.email,
+            username = user.username,
+            roles = user.roles.map { it.name },
+            permissions = user.getAllPermissions()
+        )
+
+        return TokenRefreshResponse(
+            accessToken = accessToken,
+            expiresIn = jwtExpirationMs / 1000
+        )
+    }
+
+    /**
+     * Changes user password
+     */
+    fun changePassword(
+        userId: UUID,
+        passwordChangeRequest: PasswordChangeRequest,
+        request: HttpServletRequest
+    ): AuthResponse {
+        val user = userRepository.findById(userId)
+            .orElseThrow { ResourceNotFoundException("User not found") }
+
+        if (!passwordEncoder.matches(passwordChangeRequest.currentPassword, user.password)) {
+            auditService.logPasswordChange(
+                userId = userId,
+                userEmail = user.email,
+                request = request,
+                success = false
+            )
+            throw BusinessValidationException("Current password is incorrect")
+        }
+
+        val updatedUser = user.copy(
+            password = passwordEncoder.encode(passwordChangeRequest.newPassword),
+            updatedAt = java.time.LocalDateTime.now()
+        )
+
+        userRepository.save(updatedUser)
+
+        auditService.logPasswordChange(
+            userId = userId,
+            userEmail = user.email,
+            request = request,
+            success = true
+        )
+
+        return AuthResponse(
+            success = true,
+            message = "Password changed successfully"
+        )
+    }
+
+    /**
+     * Validates a token
+     */
+    @Transactional(readOnly = true)
+    fun validateToken(token: String): Boolean {
+        return jwtTokenProvider.validateToken(token)
+    }
+
+    /**
+     * Gets user ID from token
+     */
+    @Transactional(readOnly = true)
+    fun getUserIdFromToken(token: String): UUID {
+        val userIdString = jwtTokenProvider.getUserIdFromToken(token)
+        return UUID.fromString(userIdString)
+    }
+
+    /**
+     * Helper method to find user by email or username
+     */
+    private fun findUserByEmailOrUsername(emailOrUsername: String): User? {
+        return userRepository.findByEmail(emailOrUsername).orElse(null)
+            ?: userRepository.findByUsername(emailOrUsername).orElse(null)
+    }
+}        // Try to find user in both repositories
         val adminUser = adminUserRepository.findById(userId).orElse(null)
         val consumer = consumerRepository.findById(userId).orElse(null)
 

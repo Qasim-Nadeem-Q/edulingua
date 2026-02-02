@@ -2,25 +2,30 @@ spring:
   application:
     name: edulingua-api
 
+  # PostgreSQL Database Configuration
   datasource:
-    url: jdbc:h2:mem:edulingua
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
-
-  h2:
-    console:
-      enabled: true
-      path: /h2-console
+    url: jdbc:postgresql://localhost:5432/edulingua
+    driver-class-name: org.postgresql.Driver
+    username: postgres
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
 
   jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: validate  # Use 'validate' with migrations, never 'update' or 'create'
+    show-sql: false
     properties:
       hibernate:
         format_sql: true
-        dialect: org.hibernate.dialect.H2Dialect
+        jdbc:
+          time_zone: UTC
+        default_schema: public
 
   jackson:
     serialization:

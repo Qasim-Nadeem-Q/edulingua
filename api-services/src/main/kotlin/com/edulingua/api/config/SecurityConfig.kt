@@ -1,7 +1,10 @@
 package com.edulingua.api.config
 
 import org.springframework.boot.context.properties.ConfigurationProperties
+import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder
+import org.springframework.security.crypto.password.PasswordEncoder
 
 /**
  * Configuration properties for authentication and security settings.
@@ -49,4 +52,12 @@ data class SecurityConfig(
      * Rate limit window in minutes.
      */
     var rateLimitWindowMinutes: Int = 15
-)
+) {
+    /**
+     * Bean for password encoding using BCrypt
+     */
+    @Bean
+    fun passwordEncoder(): PasswordEncoder {
+        return BCryptPasswordEncoder()
+    }
+}

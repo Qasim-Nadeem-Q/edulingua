@@ -9,6 +9,7 @@ import org.slf4j.LoggerFactory
 import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Component
 import org.springframework.web.filter.OncePerRequestFilter
+import java.util.*
 
 /**
  * Authentication filter for API endpoints.
@@ -31,8 +32,7 @@ class AuthFilter(
         private val PUBLIC_ENDPOINTS = setOf(
             "/api/health",
             "/api/v1/health",
-            "/api/v1/auth/admin/login",
-            "/api/v1/auth/consumer/login",
+            "/api/v1/auth/login",
             "/api/v1/auth/refresh",
             "/actuator/health",
             "/h2-console"
@@ -68,18 +68,18 @@ class AuthFilter(
             // Extract user information from token and set in request attributes
             val userId = jwtTokenProvider.getUserIdFromToken(token)
             val email = jwtTokenProvider.getEmailFromToken(token)
-            val role = jwtTokenProvider.getRoleFromToken(token)
-            val userType = jwtTokenProvider.getUserTypeFromToken(token)
+            val username = jwtTokenProvider.getUsernameFromToken(token)
+            val roles = jwtTokenProvider.getRolesFromToken(token)
             val permissions = jwtTokenProvider.getPermissionsFromToken(token)
 
-            request.setAttribute("userId", userId)
+            request.setAttribute("userId", UUID.fromString(userId))
             request.setAttribute("userEmail", email)
-            request.setAttribute("userRole", role)
-            request.setAttribute("userType", userType)
+            request.setAttribute("username", username)
+            request.setAttribute("userRoles", roles)
             request.setAttribute("permissions", permissions)
             request.setAttribute("token", token)
 
-            logger.debug("Authentication successful for user: {} ({}:{})", email, userType, role)
+            logger.debug("Authentication successful for user: {} ({})", email, roles.joinToString(","))
 
             // Continue with the filter chain
             filterChain.doFilter(request, response)

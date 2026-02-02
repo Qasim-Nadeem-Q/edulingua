@@ -2,14 +2,15 @@ package com.edulingua.core.models
 
 import jakarta.validation.constraints.Email
 import jakarta.validation.constraints.NotBlank
+import jakarta.validation.constraints.Size
+import java.util.*
 
 /**
  * Login request model
  */
 data class LoginRequest(
-    @field:NotBlank(message = "Email is required")
-    @field:Email(message = "Email should be valid")
-    val email: String,
+    @field:NotBlank(message = "Email or username is required")
+    val emailOrUsername: String,
 
     @field:NotBlank(message = "Password is required")
     val password: String
@@ -30,12 +31,11 @@ data class LoginResponse(
  * User information in token response
  */
 data class UserInfo(
-    val id: Long,
+    val id: UUID,
     val email: String,
+    val username: String,
     val name: String,
-    val role: String,
-    val roleDescription: String,
-    val userType: String,
+    val roles: List<String>,
     val permissions: List<String>
 )
 
@@ -64,6 +64,7 @@ data class PasswordChangeRequest(
     val currentPassword: String,
 
     @field:NotBlank(message = "New password is required")
+    @field:Size(min = 8, message = "New password must be at least 8 characters")
     val newPassword: String
 )
 

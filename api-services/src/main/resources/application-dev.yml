@@ -1,0 +1,35 @@
+# Development Environment Configuration
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/edulingua_dev
+    username: postgres
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: 5
+
+  jpa:
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # H2 Console for quick testing (optional)
+  h2:
+    console:
+      enabled: false
+
+logging:
+  level:
+    com.edulingua: DEBUG
+    org.springframework.web: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+edulingua:
+  security:
+    jwt-secret: ${JWT_SECRET:dev-secret-key-change-this-in-production-must-be-at-least-256-bits-long-for-security}
+    jwt-expiration-ms: 86400000  # 24 hours
+    jwt-refresh-expiration-ms: 604800000  # 7 days
+
+server:
+  port: 8080
