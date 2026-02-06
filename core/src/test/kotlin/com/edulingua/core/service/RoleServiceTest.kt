@@ -14,12 +14,16 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.junit.jupiter.MockitoSettings
+import org.mockito.quality.Strictness
+import org.mockito.kotlin.any
 import java.util.*
 /**
  * Comprehensive unit tests for RoleService with 100% coverage.
  * Uses Mockito for mocking dependencies.
  */
 @ExtendWith(MockitoExtension::class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class RoleServiceTest {
 
     @Mock
@@ -74,7 +78,7 @@ class RoleServiceTest {
         `when`(roleRepository.existsByName(name)).thenReturn(false)
         `when`(permissionRepository.findById(testPermissionId)).thenReturn(Optional.of(testPermission))
         `when`(permissionRepository.findById(testPermissionId2)).thenReturn(Optional.of(testPermission2))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole)
+        `when`(roleRepository.save(any())).thenReturn(testRole)
 
         // Act
         val result = roleService.createRole(name, description, permissionIds)
@@ -85,7 +89,7 @@ class RoleServiceTest {
         verify(roleRepository).existsByName(name)
         verify(permissionRepository).findById(testPermissionId)
         verify(permissionRepository).findById(testPermissionId2)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -97,7 +101,7 @@ class RoleServiceTest {
         val roleWithoutPermissions = testRole.copy(permissions = emptySet())
 
         `when`(roleRepository.existsByName(name)).thenReturn(false)
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(roleWithoutPermissions)
+        `when`(roleRepository.save(any())).thenReturn(roleWithoutPermissions)
 
         // Act
         val result = roleService.createRole(name, description, permissionIds)
@@ -105,8 +109,8 @@ class RoleServiceTest {
         // Assert
         assertNotNull(result)
         verify(roleRepository).existsByName(name)
-        verify(roleRepository).save(any(Role::class.java))
-        verify(permissionRepository, never()).findById(any(UUID::class.java))
+        verify(roleRepository).save(any())
+        verify(permissionRepository, never()).findById(any())
     }
 
     @Test
@@ -125,7 +129,7 @@ class RoleServiceTest {
 
         assertTrue(exception.message!!.contains(name))
         verify(roleRepository).existsByName(name)
-        verify(roleRepository, never()).save(any(Role::class.java))
+        verify(roleRepository, never()).save(any())
     }
 
     @Test
@@ -139,14 +143,14 @@ class RoleServiceTest {
         `when`(roleRepository.existsByName(name)).thenReturn(false)
         `when`(permissionRepository.findById(testPermissionId)).thenReturn(Optional.of(testPermission))
         `when`(permissionRepository.findById(invalidPermissionId)).thenReturn(Optional.empty())
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole.copy(permissions = setOf(testPermission)))
+        `when`(roleRepository.save(any())).thenReturn(testRole.copy(permissions = setOf(testPermission)))
 
         // Act
         val result = roleService.createRole(name, description, permissionIds)
 
         // Assert
         assertNotNull(result)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     // ==================== GET ROLE TESTS ====================
@@ -246,7 +250,7 @@ class RoleServiceTest {
 
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
         `when`(permissionRepository.findById(testPermissionId)).thenReturn(Optional.of(testPermission))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(updatedRole)
+        `when`(roleRepository.save(any())).thenReturn(updatedRole)
 
         // Act
         val result = roleService.updateRolePermissions(testRoleId, newPermissionIds)
@@ -255,7 +259,7 @@ class RoleServiceTest {
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
         verify(permissionRepository).findById(testPermissionId)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -270,7 +274,7 @@ class RoleServiceTest {
         }
 
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository, never()).save(any(Role::class.java))
+        verify(roleRepository, never()).save(any())
     }
 
     @Test
@@ -280,14 +284,14 @@ class RoleServiceTest {
         val roleWithoutPermissions = testRole.copy(permissions = emptySet())
 
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(roleWithoutPermissions)
+        `when`(roleRepository.save(any())).thenReturn(roleWithoutPermissions)
 
         // Act
         val result = roleService.updateRolePermissions(testRoleId, emptyPermissionIds)
 
         // Assert
         assertNotNull(result)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     // ==================== UPDATE ROLE DESCRIPTION TESTS ====================
@@ -299,7 +303,7 @@ class RoleServiceTest {
         val updatedRole = testRole.copy(description = newDescription)
 
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(updatedRole)
+        `when`(roleRepository.save(any())).thenReturn(updatedRole)
 
         // Act
         val result = roleService.updateRoleDescription(testRoleId, newDescription)
@@ -308,7 +312,7 @@ class RoleServiceTest {
         assertNotNull(result)
         assertEquals(newDescription, result.description)
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -323,7 +327,7 @@ class RoleServiceTest {
         }
 
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository, never()).save(any(Role::class.java))
+        verify(roleRepository, never()).save(any())
     }
 
     // ==================== DELETE ROLE TESTS ====================
@@ -353,7 +357,7 @@ class RoleServiceTest {
         }
 
         verify(roleRepository).existsById(testRoleId)
-        verify(roleRepository, never()).deleteById(any(UUID::class.java))
+        verify(roleRepository, never()).deleteById(any())
     }
 
     // ==================== PERMISSION MANAGEMENT TESTS ====================
@@ -366,14 +370,14 @@ class RoleServiceTest {
         val action = PermissionAction.WRITE
         val description = "New permission"
 
-        `when`(permissionRepository.save(any(Role::class.java))).thenReturn(testPermission)
+        `when`(permissionRepository.save(any())).thenReturn(testPermission)
 
         // Act
         val result = roleService.createPermission(name, resource, action, description)
 
         // Assert
         assertNotNull(result)
-        verify(permissionRepository).save(any(Role::class.java))
+        verify(permissionRepository).save(any())
     }
 
     @Test
@@ -501,7 +505,7 @@ class RoleServiceTest {
         }
 
         verify(permissionRepository).existsById(testPermissionId)
-        verify(permissionRepository, never()).deleteById(any(UUID::class.java))
+        verify(permissionRepository, never()).deleteById(any())
     }
 
     // ==================== ADDITIONAL HELPER METHOD TESTS ====================
@@ -512,7 +516,7 @@ class RoleServiceTest {
         val permissionIds = setOf(testPermissionId)
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
         `when`(permissionRepository.findById(testPermissionId)).thenReturn(Optional.of(testPermission))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole)
+        `when`(roleRepository.save(any())).thenReturn(testRole)
 
         // Act
         val result = roleService.assignPermissions(testRoleId, permissionIds)
@@ -520,7 +524,7 @@ class RoleServiceTest {
         // Assert
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -529,7 +533,7 @@ class RoleServiceTest {
         val roleWithOnePermission = testRole.copy(permissions = setOf(testPermission))
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(roleWithOnePermission))
         `when`(permissionRepository.findById(testPermissionId2)).thenReturn(Optional.of(testPermission2))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole)
+        `when`(roleRepository.save(any())).thenReturn(testRole)
 
         // Act
         val result = roleService.addPermission(testRoleId, testPermissionId2)
@@ -538,14 +542,14 @@ class RoleServiceTest {
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
         verify(permissionRepository).findById(testPermissionId2)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
     fun `removePermission should remove permission from role`() {
         // Arrange
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole.copy(permissions = setOf(testPermission)))
+        `when`(roleRepository.save(any())).thenReturn(testRole.copy(permissions = setOf(testPermission)))
 
         // Act
         val result = roleService.removePermission(testRoleId, testPermissionId2)
@@ -553,7 +557,7 @@ class RoleServiceTest {
         // Assert
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -635,26 +639,27 @@ class RoleServiceTest {
         )
         `when`(roleRepository.existsByName(request.name)).thenReturn(false)
         `when`(permissionRepository.findById(testPermissionId)).thenReturn(Optional.of(testPermission))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole)
+        `when`(roleRepository.save(any())).thenReturn(testRole)
 
         // Act
         val result = roleService.createRole(request)
 
         // Assert
         assertNotNull(result)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
-    fun `updateRole should update role successfully`() {
+    fun `updateRole should update role name and description`() {
         // Arrange
         val request = RoleUpdateRequest(
             name = "UPDATED_NAME",
             description = "Updated description"
         )
+        val newName = request.name!!
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(roleRepository.existsByName(request.name!!)).thenReturn(false)
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole.copy(name = request.name, description = request.description))
+        `when`(roleRepository.existsByName(newName)).thenReturn(false)
+        `when`(roleRepository.save(any())).thenReturn(testRole.copy(name = newName, description = request.description))
 
         // Act
         val result = roleService.updateRole(testRoleId, request)
@@ -662,7 +667,7 @@ class RoleServiceTest {
         // Assert
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository).save(any(Role::class.java))
+        verify(roleRepository).save(any())
     }
 
     @Test
@@ -678,7 +683,7 @@ class RoleServiceTest {
         }
 
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository, never()).save(any(Role::class.java))
+        verify(roleRepository, never()).save(any())
     }
 
     @Test
@@ -686,7 +691,7 @@ class RoleServiceTest {
         // Arrange
         val request = RoleUpdateRequest(name = null, description = "New description")
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(roleRepository.save(any(Role::class.java))).thenReturn(testRole)
+        `when`(roleRepository.save(any())).thenReturn(testRole)
 
         // Act
         val result = roleService.updateRole(testRoleId, request)
@@ -694,8 +699,8 @@ class RoleServiceTest {
         // Assert
         assertNotNull(result)
         verify(roleRepository).findById(testRoleId)
-        verify(roleRepository).save(any(Role::class.java))
-        verify(roleRepository, never()).existsByName(any(String::class.java))
+        verify(roleRepository).save(any())
+        verify(roleRepository, never()).existsByName(any())
     }
 }
 

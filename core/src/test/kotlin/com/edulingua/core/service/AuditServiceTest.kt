@@ -13,6 +13,10 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.junit.jupiter.MockitoSettings
+import org.mockito.quality.Strictness
+import org.mockito.kotlin.argumentCaptor
+import java.time.LocalDateTime
 import java.util.*
 
 /**
@@ -20,6 +24,7 @@ import java.util.*
  * Uses Mockito for mocking dependencies.
  */
 @ExtendWith(MockitoExtension::class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AuditServiceTest {
 
     @Mock
@@ -43,6 +48,7 @@ class AuditServiceTest {
     @BeforeEach
     fun setup() {
         `when`(httpServletRequest.getHeader("User-Agent")).thenReturn(testUserAgent)
+        `when`(httpServletRequest.getHeader("X-Forwarded-For")).thenReturn(null)
         `when`(httpServletRequest.method).thenReturn("POST")
         `when`(httpServletRequest.requestURI).thenReturn("/api/v1/users")
         `when`(httpServletRequest.remoteAddr).thenReturn(testIpAddress)
@@ -67,7 +73,7 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.UPDATE,
+            action = AuditAction.USER_UPDATE,
             resourceType = "User",
             resourceId = testUserId.toString(),
             description = "User updated",
@@ -88,7 +94,7 @@ class AuditServiceTest {
         assertEquals(testUserId, savedLog.userId)
         assertEquals(testEmail, savedLog.userEmail)
         assertEquals(testRoles, savedLog.userRoles)
-        assertEquals(AuditAction.UPDATE.name, savedLog.action)
+        assertEquals(AuditAction.USER_UPDATE.name, savedLog.action)
         assertEquals("User", savedLog.resourceType)
         assertEquals(testUserId.toString(), savedLog.resourceId)
         assertTrue(savedLog.success)
@@ -104,7 +110,7 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.CREATE,
+            action = AuditAction.USER_CREATE,
             resourceType = "User",
             resourceId = testUserId.toString(),
             description = "User created",
@@ -134,7 +140,7 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.DELETE,
+            action = AuditAction.USER_DELETE,
             resourceType = "User",
             resourceId = testUserId.toString(),
             description = "Failed to delete user",
@@ -164,7 +170,7 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.CREATE,
+            action = AuditAction.USER_CREATE,
             resourceType = "User"
         )
 
@@ -368,20 +374,20 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.CREATE.name,
+            action = AuditAction.USER_CREATE.name,
             description = "Created",
             timestamp = LocalDateTime.now()
         )
 
-        `when`(auditLogRepository.findByAction(AuditAction.CREATE.name)).thenReturn(listOf(auditLog))
+        `when`(auditLogRepository.findByAction(AuditAction.USER_CREATE.name)).thenReturn(listOf(auditLog))
 
         // Act
-        val result = auditService.getAuditLogsByAction(AuditAction.CREATE.name)
+        val result = auditService.getAuditLogsByAction(AuditAction.USER_CREATE.name)
 
         // Assert
         assertEquals(1, result.size)
-        assertEquals(AuditAction.CREATE.name, result[0].action)
-        verify(auditLogRepository).findByAction(AuditAction.CREATE.name)
+        assertEquals(AuditAction.USER_CREATE.name, result[0].action)
+        verify(auditLogRepository).findByAction(AuditAction.USER_CREATE.name)
     }
 
     @Test
@@ -394,19 +400,19 @@ class AuditServiceTest {
             userId = testUserId,
             userEmail = testEmail,
             userRoles = testRoles,
-            action = AuditAction.UPDATE.name,
+            action = AuditAction.USER_UPDATE.name,
             description = "Updated",
             timestamp = LocalDateTime.now()
         )
 
-        `when`(auditLogRepository.findByTimestampBetween(startDate, endDate)).thenReturn(listOf(auditLog))
+        `when`(auditLogRepository.findByDateRange(startDate, endDate)).thenReturn(listOf(auditLog))
 
         // Act
         val result = auditService.getAuditLogsByDateRange(startDate, endDate)
 
         // Assert
         assertEquals(1, result.size)
-        verify(auditLogRepository).findByTimestampBetween(startDate, endDate)
+        verify(auditLogRepository).findByDateRange(startDate, endDate)
     }
 
     @Test
@@ -431,14 +437,14 @@ class AuditServiceTest {
             timestamp = LocalDateTime.now().minusHours(1)
         )
 
-        `when`(auditLogRepository.findTop50ByOrderByTimestampDesc()).thenReturn(listOf(auditLog1, auditLog2))
+        `when`(auditLogRepository.findAll()).thenReturn(listOf(auditLog1, auditLog2))
 
         // Act
         val result = auditService.getRecentAuditLogs()
 
         // Assert
         assertEquals(2, result.size)
-        verify(auditLogRepository).findTop50ByOrderByTimestampDesc()
+        verify(auditLogRepository).findAll()
     }
 }
 

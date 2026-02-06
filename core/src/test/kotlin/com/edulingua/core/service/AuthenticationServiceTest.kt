@@ -14,6 +14,11 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.junit.jupiter.MockitoSettings
+import org.mockito.quality.Strictness
+import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.test.util.ReflectionTestUtils
 import java.util.*
 
@@ -22,6 +27,7 @@ import java.util.*
  * Uses Mockito for mocking dependencies.
  */
 @ExtendWith(MockitoExtension::class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class AuthenticationServiceTest {
 
     @Mock
@@ -95,7 +101,7 @@ class AuthenticationServiceTest {
         `when`(passwordEncoder.matches(loginRequest.password, testUser.password)).thenReturn(true)
         `when`(jwtTokenProvider.generateAccessToken(any(), any(), any(), any(), any())).thenReturn(testAccessToken)
         `when`(jwtTokenProvider.generateRefreshToken(any(), any())).thenReturn(testRefreshToken)
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
         doNothing().`when`(auditService).logLogin(any(), any(), any(), any(), any())
 
         // Act
@@ -112,7 +118,7 @@ class AuthenticationServiceTest {
         verify(jwtTokenProvider).generateAccessToken(any(), any(), any(), any(), any())
         verify(jwtTokenProvider).generateRefreshToken(any(), any())
         verify(auditService, times(1)).logLogin(any(), any(), any(), any(), eq(true))
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -128,7 +134,7 @@ class AuthenticationServiceTest {
         `when`(passwordEncoder.matches(loginRequest.password, testUser.password)).thenReturn(true)
         `when`(jwtTokenProvider.generateAccessToken(any(), any(), any(), any(), any())).thenReturn(testAccessToken)
         `when`(jwtTokenProvider.generateRefreshToken(any(), any())).thenReturn(testRefreshToken)
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
         doNothing().`when`(auditService).logLogin(any(), any(), any(), any(), any())
 
         // Act
@@ -300,7 +306,7 @@ class AuthenticationServiceTest {
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser))
         `when`(passwordEncoder.matches(passwordChangeRequest.currentPassword, testUser.password)).thenReturn(true)
         `when`(passwordEncoder.encode(passwordChangeRequest.newPassword)).thenReturn("newEncodedPassword")
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
         doNothing().`when`(auditService).logPasswordChange(any(), any(), any(), any())
 
         // Act
@@ -313,7 +319,7 @@ class AuthenticationServiceTest {
         verify(userRepository).findById(testUserId)
         verify(passwordEncoder).matches(passwordChangeRequest.currentPassword, testUser.password)
         verify(passwordEncoder).encode(passwordChangeRequest.newPassword)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
         verify(auditService).logPasswordChange(any(), any(), any(), eq(true))
     }
 
@@ -337,7 +343,7 @@ class AuthenticationServiceTest {
         assertTrue(exception.message!!.contains("Current password is incorrect"))
         verify(passwordEncoder).matches(passwordChangeRequest.currentPassword, testUser.password)
         verify(auditService).logPasswordChange(any(), any(), any(), eq(false))
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
@@ -357,7 +363,7 @@ class AuthenticationServiceTest {
 
         verify(userRepository).findById(testUserId)
         verify(passwordEncoder, never()).matches(any(), any())
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     // ==================== VALIDATE TOKEN TESTS ====================

@@ -224,30 +224,12 @@ object TestData {
     fun createUserUpdateRequest(
         name: String? = null,
         phoneNumber: String? = null,
-        stateCode: String? = null,
-        stateName: String? = null,
-        districtCode: String? = null,
-        districtName: String? = null,
-        schoolCode: String? = null,
-        schoolName: String? = null,
-        classCode: String? = null,
-        className: String? = null,
-        rollNumber: String? = null,
-        dateOfBirth: LocalDateTime? = null,
+        active: Boolean? = null,
         parentEmail: String? = null
     ) = UserUpdateRequest(
         name = name,
         phoneNumber = phoneNumber,
-        stateCode = stateCode,
-        stateName = stateName,
-        districtCode = districtCode,
-        districtName = districtName,
-        schoolCode = schoolCode,
-        schoolName = schoolName,
-        classCode = classCode,
-        className = className,
-        rollNumber = rollNumber,
-        dateOfBirth = dateOfBirth,
+        active = active,
         parentEmail = parentEmail
     )
 

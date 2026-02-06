@@ -2,12 +2,11 @@ package com.edulingua.core.security
 
 import io.jsonwebtoken.Claims
 import io.jsonwebtoken.Jwts
-import io.jsonwebtoken.SignatureAlgorithm
 import io.jsonwebtoken.security.Keys
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.stereotype.Component
-import java.security.Key
 import java.util.*
+import javax.crypto.SecretKey
 
 /**
  * JWT utility for token generation, validation, and claims extraction.
@@ -25,7 +24,7 @@ class JwtTokenProvider {
     @Value("\${edulingua.security.jwt-refresh-expiration-ms:604800000}")
     private var jwtRefreshExpirationMs: Long = 604800000 // 7 days
 
-    private fun getSigningKey(): Key {
+    private fun getSigningKey(): SecretKey {
         return Keys.hmacShaKeyFor(jwtSecret.toByteArray())
     }
 
@@ -43,14 +42,14 @@ class JwtTokenProvider {
         val expiryDate = Date(now.time + jwtExpirationMs)
 
         return Jwts.builder()
-            .setSubject(userId.toString())
+            .subject(userId.toString())
             .claim("email", email)
             .claim("username", username)
             .claim("roles", roles)
             .claim("permissions", permissions)
-            .setIssuedAt(now)
-            .setExpiration(expiryDate)
-            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .issuedAt(now)
+            .expiration(expiryDate)
+            .signWith(getSigningKey())
             .compact()
     }
 
@@ -62,12 +61,12 @@ class JwtTokenProvider {
         val expiryDate = Date(now.time + jwtRefreshExpirationMs)
 
         return Jwts.builder()
-            .setSubject(userId.toString())
+            .subject(userId.toString())
             .claim("email", email)
             .claim("tokenType", "REFRESH")
-            .setIssuedAt(now)
-            .setExpiration(expiryDate)
-            .signWith(getSigningKey(), SignatureAlgorithm.HS256)
+            .issuedAt(now)
+            .expiration(expiryDate)
+            .signWith(getSigningKey())
             .compact()
     }
 
@@ -125,11 +124,11 @@ class JwtTokenProvider {
      * Extracts all claims from token
      */
     private fun getAllClaimsFromToken(token: String): Claims {
-        return Jwts.parserBuilder()
-            .setSigningKey(getSigningKey())
+        return Jwts.parser()
+            .verifyWith(getSigningKey())
             .build()
-            .parseClaimsJws(token)
-            .body
+            .parseSignedClaims(token)
+            .payload
     }
 
     /**
@@ -149,10 +148,10 @@ class JwtTokenProvider {
      */
     fun validateToken(token: String): Boolean {
         return try {
-            Jwts.parserBuilder()
-                .setSigningKey(getSigningKey())
+            Jwts.parser()
+                .verifyWith(getSigningKey())
                 .build()
-                .parseClaimsJws(token)
+                .parseSignedClaims(token)
             !isTokenExpired(token)
         } catch (e: Exception) {
             false

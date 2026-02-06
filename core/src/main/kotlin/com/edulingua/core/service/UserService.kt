@@ -19,7 +19,8 @@ import java.util.*
 class UserService(
     private val userRepository: UserRepository,
     private val roleRepository: RoleRepository,
-    private val passwordEncoder: PasswordEncoder
+    private val passwordEncoder: PasswordEncoder,
+    private val authorizationService: AuthorizationService
 ) {
 
     /**
@@ -365,5 +366,163 @@ class UserService(
                 user.username.lowercase().contains(normalizedQuery)
             }
             .map { it.toResponse() }
+    }
+
+    // ========================================
+    // Data Scope Enforcement Methods
+    // ========================================
+
+    /**
+     * Creates a user with hierarchical validation.
+     * Ensures the creator can only create users within their scope.
+     */
+    fun createUserWithValidation(currentUserId: UUID, request: UserCreateRequest): UserResponse {
+        val creator = userRepository.findById(currentUserId).orElseThrow {
+            ResourceNotFoundException("Creator user not found")
+        }
+
+        // Admins can create users anywhere
+        if (!creator.hasRole("ADMIN")) {
+            // Validate scope based on creator's role
+            when {
+                creator.hasRole("STATE") -> {
+                    if (request.stateCode != creator.stateCode) {
+                        throw BusinessValidationException(
+                            "State coordinators can only create users in their state"
+                        )
+                    }
+                }
+                creator.hasRole("DISTRICT") -> {
+                    if (request.stateCode != creator.stateCode ||
+                        request.districtCode != creator.districtCode) {
+                        throw BusinessValidationException(
+                            "District coordinators can only create users in their district"
+                        )
+                    }
+                }
+                creator.hasRole("SCHOOL") -> {
+                    if (request.schoolCode != creator.schoolCode) {
+                        throw BusinessValidationException(
+                            "School coordinators can only create users in their school"
+                        )
+                    }
+                }
+                creator.hasRole("CLASS") -> {
+                    if (request.schoolCode != creator.schoolCode ||
+                        request.classCode != creator.classCode) {
+                        throw BusinessValidationException(
+                            "Class teachers can only create students in their class"
+                        )
+                    }
+                    // Class teachers can only create students
+                    val requestedRoles = roleRepository.findAllById(request.roleIds)
+                    if (requestedRoles.any { it.name != "STUDENT" }) {
+                        throw BusinessValidationException(
+                            "Class teachers can only create student users"
+                        )
+                    }
+                }
+                else -> {
+                    throw BusinessValidationException(
+                        "You don't have permission to create users"
+                    )
+                }
+            }
+        }
+
+        return createUser(request)
+    }
+
+    /**
+     * Gets users filtered by current user's data scope.
+     */
+    @Transactional(readOnly = true)
+    fun getAllUsersWithScope(currentUserId: UUID, activeOnly: Boolean = false): List<UserResponse> {
+        val currentUser = userRepository.findById(currentUserId).orElseThrow {
+            ResourceNotFoundException("Current user not found")
+        }
+
+        val allUsers = if (activeOnly) getActiveUsers() else getAllUsers()
+
+        // Admin sees all users
+        if (currentUser.hasRole("ADMIN")) {
+            return allUsers
+        }
+
+        // Filter by hierarchy
+        return allUsers.filter { userResponse ->
+            val targetUser = userRepository.findById(userResponse.id).orElse(null)
+            targetUser != null && authorizationService.canManageUser(currentUserId, targetUser.id!!)
+        }
+    }
+
+    /**
+     * Gets users by role with scope validation.
+     */
+    @Transactional(readOnly = true)
+    fun getUsersByRoleWithScope(
+        currentUserId: UUID,
+        roleName: String,
+        activeOnly: Boolean = false
+    ): List<UserResponse> {
+        val baseUsers = if (activeOnly) {
+            getActiveUsersByRole(roleName)
+        } else {
+            getUsersByRole(roleName)
+        }
+
+        val currentUser = userRepository.findById(currentUserId).orElseThrow {
+            ResourceNotFoundException("Current user not found")
+        }
+
+        // Admin sees all
+        if (currentUser.hasRole("ADMIN")) {
+            return baseUsers
+        }
+
+        // Filter by scope
+        return baseUsers.filter { userResponse ->
+            val targetUser = userRepository.findById(userResponse.id).orElse(null)
+            targetUser != null && authorizationService.canManageUser(currentUserId, targetUser.id!!)
+        }
+    }
+
+    /**
+     * Validates that current user can perform action on target user.
+     */
+    private fun validateHierarchicalAccess(currentUserId: UUID, targetUserId: UUID) {
+        authorizationService.requireCanManageUser(currentUserId, targetUserId)
+    }
+
+    /**
+     * Update user with hierarchical validation.
+     */
+    fun updateUserWithValidation(
+        currentUserId: UUID,
+        targetUserId: UUID,
+        updateRequest: UserUpdateRequest
+    ): UserResponse {
+        validateHierarchicalAccess(currentUserId, targetUserId)
+        return updateUser(targetUserId, updateRequest)
+    }
+
+    /**
+     * Delete user with hierarchical validation.
+     */
+    fun deleteUserWithValidation(currentUserId: UUID, targetUserId: UUID) {
+        validateHierarchicalAccess(currentUserId, targetUserId)
+        deleteUser(targetUserId)
+    }
+
+    /**
+     * Assign roles with hierarchical validation.
+     */
+    fun assignRolesWithValidation(
+        currentUserId: UUID,
+        targetUserId: UUID,
+        roleIds: Set<UUID>
+    ): UserResponse {
+        validateHierarchicalAccess(currentUserId, targetUserId)
+        return assignRoles(targetUserId, roleIds)
     }
 }

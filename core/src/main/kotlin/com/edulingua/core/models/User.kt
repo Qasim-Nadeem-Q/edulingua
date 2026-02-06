@@ -344,7 +344,3 @@ interface UserRepository : JpaRepository<User, UUID> {
     @Query("SELECT u FROM User u JOIN u.roles r WHERE u.schoolCode = :schoolCode AND u.classCode = :classCode AND r.name = 'STUDENT'")
     fun findStudentsByClass(schoolCode: String, classCode: String): List<User>
 }
-     * Checks if a user exists with the given email address.
-     */
-    fun existsByEmail(email: String): Boolean
-}

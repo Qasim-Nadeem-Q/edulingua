@@ -1,9 +1,13 @@
 package com.edulingua.api.controller
 
+import com.edulingua.api.filter.AuthContext
 import com.edulingua.api.model.ApiResponse
 import com.edulingua.api.security.RequirePermission
+import com.edulingua.api.security.AllowSelfAccess
+import com.edulingua.api.security.RequireHierarchicalAccess
 import com.edulingua.core.models.*
 import com.edulingua.core.service.UserService
+import jakarta.servlet.http.HttpServletRequest
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
@@ -19,6 +23,45 @@ import java.util.*
 class UserController(
     private val userService: UserService
 ) {
+
+    /**
+     * Get current user's profile
+     * No permission required - authenticated users can view their own profile
+     */
+    @GetMapping("/me")
+    fun getCurrentUser(request: HttpServletRequest): ResponseEntity<ApiResponse<UserResponse>> {
+        val userId = AuthContext.getUserId(request)
+            ?: throw IllegalStateException("User not authenticated")
+
+        val user = userService.getUserById(userId)
+        return ResponseEntity.ok(
+            ApiResponse.success(
+                data = user,
+                message = "Current user profile retrieved successfully"
+            )
+        )
+    }
+
+    /**
+     * Update current user's profile
+     * No permission required - authenticated users can update their own profile
+     */
+    @PutMapping("/me")
+    fun updateCurrentUser(
+        request: HttpServletRequest,
+        @Valid @RequestBody updateRequest: UserUpdateRequest
+    ): ResponseEntity<ApiResponse<UserResponse>> {
+        val userId = AuthContext.getUserId(request)
+            ?: throw IllegalStateException("User not authenticated")
+
+        val updatedUser = userService.updateUser(userId, updateRequest)
+        return ResponseEntity.ok(
+            ApiResponse.success(
+                data = updatedUser,
+                message = "Profile updated successfully"
+            )
+        )
+    }
 
     /**
      * Create a new user with roles
@@ -185,9 +228,11 @@ class UserController(
     /**
      * Update user
      * Required permission: UPDATE_USERS
+     * Users can update their own profile or managers can update users in their hierarchy
      */
     @PutMapping("/{id}")
     @RequirePermission("UPDATE_USERS")
+    @AllowSelfAccess(targetUserIdParam = "id")
     fun updateUser(
         @PathVariable id: UUID,
         @Valid @RequestBody updateRequest: UserUpdateRequest
@@ -204,9 +249,11 @@ class UserController(
     /**
      * Assign roles to user
      * Required permission: MANAGE_ROLES
+     * Managers can only assign roles to users in their hierarchy
      */
     @PutMapping("/{id}/roles")
     @RequirePermission("MANAGE_ROLES")
+    @RequireHierarchicalAccess(targetUserIdParam = "id")
     fun assignRoles(
         @PathVariable id: UUID,
         @RequestBody roleIds: Set<UUID>
@@ -223,9 +270,11 @@ class UserController(
     /**
      * Activate user
      * Required permission: UPDATE_USERS
+     * Managers can only activate users in their hierarchy
      */
     @PatchMapping("/{id}/activate")
     @RequirePermission("UPDATE_USERS")
+    @RequireHierarchicalAccess(targetUserIdParam = "id")
     fun activateUser(@PathVariable id: UUID): ResponseEntity<ApiResponse<UserResponse>> {
         val user = userService.activateUser(id)
         return ResponseEntity.ok(
@@ -239,9 +288,11 @@ class UserController(
     /**
      * Deactivate user
      * Required permission: UPDATE_USERS
+     * Managers can only deactivate users in their hierarchy
      */
     @PatchMapping("/{id}/deactivate")
     @RequirePermission("UPDATE_USERS")
+    @RequireHierarchicalAccess(targetUserIdParam = "id")
     fun deactivateUser(@PathVariable id: UUID): ResponseEntity<ApiResponse<UserResponse>> {
         val user = userService.deactivateUser(id)
         return ResponseEntity.ok(
@@ -255,14 +306,16 @@ class UserController(
     /**
      * Delete user
      * Required permission: DELETE_USERS
+     * Managers can only delete users in their hierarchy
      */
     @DeleteMapping("/{id}")
     @RequirePermission("DELETE_USERS")
-    fun deleteUser(@PathVariable id: UUID): ResponseEntity<ApiResponse<Void>> {
+    @RequireHierarchicalAccess(targetUserIdParam = "id")
+    fun deleteUser(@PathVariable id: UUID): ResponseEntity<ApiResponse<Unit>> {
         userService.deleteUser(id)
         return ResponseEntity.ok(
             ApiResponse.success(
-                data = null,
+                data = Unit,
                 message = "User deleted successfully"
             )
         )

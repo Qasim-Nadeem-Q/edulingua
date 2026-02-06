@@ -165,7 +165,7 @@ class AuditService(
      */
     @Transactional(readOnly = true)
     fun getAuditLogsByDateRange(startDate: LocalDateTime, endDate: LocalDateTime): List<AuditLog> {
-        return auditLogRepository.findByTimestampBetween(startDate, endDate)
+        return auditLogRepository.findByDateRange(startDate, endDate)
     }
 
     /**
@@ -173,7 +173,7 @@ class AuditService(
      */
     @Transactional(readOnly = true)
     fun getRecentAuditLogs(): List<AuditLog> {
-        return auditLogRepository.findTop50ByOrderByTimestampDesc()
+        return auditLogRepository.findAll().sortedByDescending { it.timestamp }.take(50)
     }
 
     /**

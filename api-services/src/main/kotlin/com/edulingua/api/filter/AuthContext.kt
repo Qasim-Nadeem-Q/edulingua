@@ -118,10 +118,28 @@ class AuthContext {
         }
 
         /**
-         * Checks if user is consumer.
+         * Checks if user is consumer (non-admin users).
          */
         fun isConsumer(request: HttpServletRequest): Boolean {
-            return getUserType(request) == "CONSUMER"
+            val roles = getUserRoles(request)
+            return roles.any { it in listOf("STATE", "DISTRICT", "SCHOOL", "CLASS", "STUDENT") }
+        }
+
+        /**
+         * Gets the primary user type based on roles.
+         * Returns the highest privilege role.
+         */
+        fun getUserType(request: HttpServletRequest): String {
+            val roles = getUserRoles(request)
+            return when {
+                roles.contains("ADMIN") -> "ADMIN"
+                roles.contains("STATE") -> "STATE"
+                roles.contains("DISTRICT") -> "DISTRICT"
+                roles.contains("SCHOOL") -> "SCHOOL"
+                roles.contains("CLASS") -> "CLASS"
+                roles.contains("STUDENT") -> "STUDENT"
+                else -> "UNKNOWN"
+            }
         }
     }
 }

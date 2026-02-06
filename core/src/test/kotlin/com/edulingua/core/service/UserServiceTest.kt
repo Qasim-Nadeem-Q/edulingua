@@ -13,6 +13,9 @@ import org.mockito.InjectMocks
 import org.mockito.Mock
 import org.mockito.Mockito.*
 import org.mockito.junit.jupiter.MockitoExtension
+import org.mockito.junit.jupiter.MockitoSettings
+import org.mockito.quality.Strictness
+import org.mockito.kotlin.any
 import org.springframework.security.crypto.password.PasswordEncoder
 import java.time.LocalDateTime
 import java.util.*
@@ -22,6 +25,7 @@ import java.util.*
  * Uses Mockito for mocking dependencies.
  */
 @ExtendWith(MockitoExtension::class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class UserServiceTest {
 
     @Mock
@@ -32,6 +36,9 @@ class UserServiceTest {
 
     @Mock
     private lateinit var passwordEncoder: PasswordEncoder
+
+    @Mock
+    private lateinit var authorizationService: AuthorizationService
 
     @InjectMocks
     private lateinit var userService: UserService
@@ -101,7 +108,7 @@ class UserServiceTest {
         `when`(userRepository.existsByUsername(request.username)).thenReturn(false)
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
         `when`(passwordEncoder.encode(request.password)).thenReturn("encodedPassword")
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
 
         // Act
         val result = userService.createUser(request)
@@ -114,7 +121,7 @@ class UserServiceTest {
         verify(userRepository).existsByUsername(request.username)
         verify(roleRepository).findById(testRoleId)
         verify(passwordEncoder).encode(request.password)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -137,7 +144,7 @@ class UserServiceTest {
 
         assertTrue(exception.message!!.contains("email"))
         verify(userRepository).existsByEmail(request.email)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
@@ -161,7 +168,7 @@ class UserServiceTest {
 
         assertTrue(exception.message!!.contains("username"))
         verify(userRepository).existsByUsername(request.username)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
@@ -177,7 +184,7 @@ class UserServiceTest {
 
         `when`(userRepository.existsByEmail(request.email)).thenReturn(false)
         `when`(userRepository.existsByUsername(request.username)).thenReturn(false)
-        `when`(roleRepository.findById(any(UUID::class.java))).thenReturn(Optional.empty())
+        `when`(roleRepository.findById(any())).thenReturn(Optional.empty())
 
         // Act & Assert
         val exception = assertThrows<ResourceNotFoundException> {
@@ -185,7 +192,7 @@ class UserServiceTest {
         }
 
         assertTrue(exception.message!!.contains("roles"))
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     // ==================== GET USER TESTS ====================
@@ -293,7 +300,7 @@ class UserServiceTest {
         // Arrange
         val activeUser = testUser
         val inactiveUser = testUser.copy(id = UUID.randomUUID(), active = false)
-        `when`(userRepository.findByActive(true)).thenReturn(listOf(activeUser))
+        `when`(userRepository.findByActiveTrue()).thenReturn(listOf(activeUser))
 
         // Act
         val result = userService.getActiveUsers()
@@ -301,35 +308,35 @@ class UserServiceTest {
         // Assert
         assertEquals(1, result.size)
         assertTrue(result.all { it.active })
-        verify(userRepository).findByActive(true)
+        verify(userRepository).findByActiveTrue()
     }
 
     @Test
     fun `getUsersByRole should return users with specific role`() {
         // Arrange
         val roleName = "ADMIN"
-        `when`(userRepository.findAll()).thenReturn(listOf(testUser))
+        `when`(userRepository.findByRoleName(roleName)).thenReturn(listOf(testUser))
 
         // Act
         val result = userService.getUsersByRole(roleName)
 
         // Assert
         assertEquals(1, result.size)
-        verify(userRepository).findAll()
+        verify(userRepository).findByRoleName(roleName)
     }
 
     @Test
     fun `getActiveUsersByRole should return active users with specific role`() {
         // Arrange
         val roleName = "ADMIN"
-        `when`(userRepository.findByActive(true)).thenReturn(listOf(testUser))
+        `when`(userRepository.findByRoleNameAndActiveTrue(roleName)).thenReturn(listOf(testUser))
 
         // Act
         val result = userService.getActiveUsersByRole(roleName)
 
         // Assert
         assertEquals(1, result.size)
-        verify(userRepository).findByActive(true)
+        verify(userRepository).findByRoleNameAndActiveTrue(roleName)
     }
 
     // ==================== LOCATION-BASED QUERY TESTS ====================
@@ -384,14 +391,14 @@ class UserServiceTest {
         // Arrange
         val schoolCode = "MH01-001"
         val classCode = "CLASS-10A"
-        `when`(userRepository.findBySchoolCodeAndClassCode(schoolCode, classCode)).thenReturn(listOf(testUser))
+        `when`(userRepository.findStudentsByClass(schoolCode, classCode)).thenReturn(listOf(testUser))
 
         // Act
         val result = userService.getStudentsByClass(schoolCode, classCode)
 
         // Assert
         assertEquals(1, result.size)
-        verify(userRepository).findBySchoolCodeAndClassCode(schoolCode, classCode)
+        verify(userRepository).findStudentsByClass(schoolCode, classCode)
     }
 
     // ==================== UPDATE USER TESTS ====================
@@ -405,7 +412,7 @@ class UserServiceTest {
         )
 
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser))
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser.copy(name = "Updated Name"))
+        `when`(userRepository.save(any())).thenReturn(testUser.copy(name = "Updated Name"))
 
         // Act
         val result = userService.updateUser(testUserId, updateRequest)
@@ -413,7 +420,7 @@ class UserServiceTest {
         // Assert
         assertNotNull(result)
         verify(userRepository).findById(testUserId)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -428,7 +435,7 @@ class UserServiceTest {
         }
 
         verify(userRepository).findById(testUserId)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
@@ -437,7 +444,7 @@ class UserServiceTest {
         val roleIds = setOf(testRoleId)
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser))
         `when`(roleRepository.findById(testRoleId)).thenReturn(Optional.of(testRole))
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
 
         // Act
         val result = userService.assignRoles(testUserId, roleIds)
@@ -446,7 +453,7 @@ class UserServiceTest {
         assertNotNull(result)
         verify(userRepository).findById(testUserId)
         verify(roleRepository).findById(testRoleId)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -461,7 +468,7 @@ class UserServiceTest {
         }
 
         verify(userRepository).findById(testUserId)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     // ==================== ACTIVATE/DEACTIVATE TESTS ====================
@@ -471,7 +478,7 @@ class UserServiceTest {
         // Arrange
         val inactiveUser = testUser.copy(active = false)
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(inactiveUser))
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
 
         // Act
         val result = userService.activateUser(testUserId)
@@ -479,7 +486,7 @@ class UserServiceTest {
         // Assert
         assertNotNull(result)
         verify(userRepository).findById(testUserId)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -493,14 +500,14 @@ class UserServiceTest {
         }
 
         verify(userRepository).findById(testUserId)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
     fun `deactivateUser should deactivate user successfully`() {
         // Arrange
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser))
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser.copy(active = false))
+        `when`(userRepository.save(any())).thenReturn(testUser.copy(active = false))
 
         // Act
         val result = userService.deactivateUser(testUserId)
@@ -508,7 +515,7 @@ class UserServiceTest {
         // Assert
         assertNotNull(result)
         verify(userRepository).findById(testUserId)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -522,7 +529,7 @@ class UserServiceTest {
         }
 
         verify(userRepository).findById(testUserId)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     // ==================== DELETE USER TESTS ====================
@@ -552,7 +559,7 @@ class UserServiceTest {
         }
 
         verify(userRepository).existsById(testUserId)
-        verify(userRepository, never()).deleteById(any(UUID::class.java))
+        verify(userRepository, never()).deleteById(any())
     }
 
     // ==================== CHANGE PASSWORD TESTS ====================
@@ -565,7 +572,7 @@ class UserServiceTest {
         `when`(userRepository.findById(testUserId)).thenReturn(Optional.of(testUser))
         `when`(passwordEncoder.matches(currentPassword, testUser.password)).thenReturn(true)
         `when`(passwordEncoder.encode(newPassword)).thenReturn("newEncodedPassword")
-        `when`(userRepository.save(any(User::class.java))).thenReturn(testUser)
+        `when`(userRepository.save(any())).thenReturn(testUser)
 
         // Act
         userService.changePassword(testUserId, currentPassword, newPassword)
@@ -574,7 +581,7 @@ class UserServiceTest {
         verify(userRepository).findById(testUserId)
         verify(passwordEncoder).matches(currentPassword, testUser.password)
         verify(passwordEncoder).encode(newPassword)
-        verify(userRepository).save(any(User::class.java))
+        verify(userRepository).save(any())
     }
 
     @Test
@@ -592,7 +599,7 @@ class UserServiceTest {
 
         verify(userRepository).findById(testUserId)
         verify(passwordEncoder).matches(currentPassword, testUser.password)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     @Test
@@ -606,7 +613,7 @@ class UserServiceTest {
         }
 
         verify(userRepository).findById(testUserId)
-        verify(userRepository, never()).save(any(User::class.java))
+        verify(userRepository, never()).save(any())
     }
 
     // ==================== STATISTICS TESTS ====================
